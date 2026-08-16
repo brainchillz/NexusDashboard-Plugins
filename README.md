@@ -75,4 +75,8 @@ own README gives the exact lines. Two rules apply everywhere:
 
 ## License
 
-Same terms as the Nexus Dashboard. See the dashboard repository.
+[MIT](LICENSE).
+
+Every plugin here is original work. `drive-bays` in particular reads the
+kernel's own SES and PCI interfaces under `/sys` rather than reusing any
+vendor tooling, so it carries no third-party licensing obligations.
