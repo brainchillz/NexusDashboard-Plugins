@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# nexus-bay-led — root helper for the dashboard's drive-bays plugin.
+#
+# Sets a SCSI Enclosure Services identify/fault LED for one bay:
+#
+#     nexus-bay-led <enclosure-id> <component> <locate|fault> <0|1>
+#     nexus-bay-led 0:0:8:0 9 locate 1
+#
+# The sysfs attributes are root-owned, so this is the only privileged part of
+# the plugin. It is a trust boundary and does NOT trust its caller: every
+# argument is re-validated here even though the plugin validates them too.
+#
+# Install:  install -o root -g root -m 0755 nexus-bay-led /usr/local/sbin/
+# Sudoers:  see the plugin README (two lines, sudo-rs safe).
+#
+# POSIX sh only — identical behaviour on Rocky 9 and Ubuntu 26.04.
+
+set -eu
+
+ROOT=/sys/class/enclosure
+
+usage() {
+	echo "Usage: $(basename "$0") <enclosure-id> <component> <locate|fault> <0|1>" >&2
+	exit 2
+}
+
+[ $# -eq 4 ] || usage
+
+ENC=$1
+COMP=$2
+ATTR=$3
+VAL=$4
+
+# Allowlists, anchored. Neither ENC nor COMP can contain '/' or '.', so no
+# argument can traverse out of $ROOT no matter what is passed in.
+case "$ENC" in
+	*[!0-9:]* | '' | *::* ) echo "invalid enclosure id" >&2; exit 2 ;;
+esac
+case "$COMP" in
+	*[!0-9]* | '' ) echo "invalid component" >&2; exit 2 ;;
+esac
+case "$ATTR" in
+	locate | fault ) ;;
+	* ) echo "invalid attribute (want locate or fault)" >&2; exit 2 ;;
+esac
+case "$VAL" in
+	0 | 1 ) ;;
+	* ) echo "invalid value (want 0 or 1)" >&2; exit 2 ;;
+esac
+
+TARGET="$ROOT/$ENC/$COMP/$ATTR"
+
+if [ ! -f "$TARGET" ]; then
+	echo "no such enclosure bay attribute: $TARGET" >&2
+	exit 1
+fi
+
+printf '%s\n' "$VAL" > "$TARGET" || {
+	echo "write failed: $TARGET" >&2
+	exit 1
+}
+
+exit 0
